@@ -1,0 +1,42 @@
+name: bb Windows installer e2e
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "bb release tag (default: latest desktop-v*)"
+        required: false
+  schedule:
+    - cron: "0 6 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Download the bb installer
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if (-not $env:TAG) {
+            $env:TAG = gh release list -R get-bb/bb --limit 50 --json tagName -q '[.[].tagName | select(test("^desktop-v[0-9]"))][0]'
+          }
+          gh release download $env:TAG -R get-bb/bb --pattern 'bb-*-x64.exe' --dir installer
+          "TAG=$env:TAG" >> $env:GITHUB_ENV
+      - name: Install, start, quit, uninstall
+        shell: pwsh
+        run: node e2e.mjs (Get-ChildItem installer\bb-*-x64.exe).FullName
+      - name: Summary
+        if: always()
+        shell: pwsh
+        run: '"Tested get-bb/bb $env:TAG" >> $env:GITHUB_STEP_SUMMARY'
