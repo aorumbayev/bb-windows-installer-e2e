@@ -152,7 +152,7 @@ async function main() {
   step("daemon port is freed", await portIsFree(daemonPort), `port ${daemonPort}`);
 
   const leftover = await powershell(
-    `Get-CimInstance Win32_Process | ? { $_.CommandLine -like '*${root}*' -or $_.ExecutablePath -like '${installDir}*' } | % { "$($_.ProcessId) $($_.Name) $($_.CommandLine)" }`,
+    `Get-CimInstance Win32_Process | ? { $_.ProcessId -ne $PID } | ? { $_.CommandLine -like '*${root}*' -or $_.ExecutablePath -like '${installDir}*' } | % { "$($_.ProcessId) $($_.Name) $($_.CommandLine)" }`,
   );
   step("no bb processes left after quit", leftover === "", leftover.replaceAll(/\s+/g, " ").slice(0, 600));
 
