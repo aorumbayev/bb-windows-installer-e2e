@@ -151,6 +151,11 @@ async function main() {
   step("server port is freed", await portIsFree(serverPort), `port ${serverPort}`);
   step("daemon port is freed", await portIsFree(daemonPort), `port ${daemonPort}`);
 
+  const leftover = await powershell(
+    `Get-CimInstance Win32_Process | ? { $_.CommandLine -like '*${root}*' -or $_.ExecutablePath -like '${installDir}*' } | % { "$($_.ProcessId) $($_.Name) $($_.CommandLine)" }`,
+  );
+  step("no bb processes left after quit", leftover === "", leftover.replaceAll(/\s+/g, " ").slice(0, 600));
+
   await run("taskkill", ["/PID", String(runtime.value.pid), "/T", "/F"]).catch(() => {});
   await run("taskkill", ["/PID", String(child.pid), "/T", "/F"]).catch(() => {});
 
@@ -160,7 +165,13 @@ async function main() {
     (error) => ({ error }),
   );
   step("silent uninstall removes the app", !removed.error, `${Math.round((Date.now() - start) / 1000)} s`);
-  await rm(root, { recursive: true, force: true });
+  const freed = await waitFor("test data folder to be released", 30_000, () =>
+    rm(root, { recursive: true, force: true }).then(
+      () => true,
+      () => false,
+    ),
+  ).catch((error) => ({ error }));
+  step("nothing keeps bb's data folder open", !freed.error, freed.error ? root : "");
 }
 
 try {
