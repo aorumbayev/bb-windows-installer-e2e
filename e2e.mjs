@@ -68,7 +68,9 @@ async function pidAlive(pid) {
 }
 
 async function powershell(command) {
-  const { stdout } = await run("powershell", ["-NoProfile", "-Command", command]);
+  // Started from PowerShell 7, Windows PowerShell inherits its module path and cannot load its own modules.
+  const { PSModulePath: _, ...env } = process.env;
+  const { stdout } = await run("powershell", ["-NoProfile", "-Command", command], { env });
   return stdout.trim();
 }
 
